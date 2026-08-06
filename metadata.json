@@ -1,0 +1,6 @@
+{
+  "name": "MedhaPrep AI",
+  "description": "AI Mock Test Creator, WBCHSE & JEE Preparation, Voice Verbal Reasoning & Speech Analysis, YouTube & PDF Notes Generator in Bengali & English",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
