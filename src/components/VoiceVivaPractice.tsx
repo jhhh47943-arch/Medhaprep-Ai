@@ -21,12 +21,20 @@ import { MathRenderer } from "./MathRenderer";
 
 interface VoiceVivaPracticeProps {
   customApiKey: string;
+  initialBoard?: ExamBoard;
+  initialSubject?: string;
+  initialTopic?: string;
 }
 
-export const VoiceVivaPractice: React.FC<VoiceVivaPracticeProps> = ({ customApiKey }) => {
-  const [board, setBoard] = useState<ExamBoard>("WBCHSE (Class 11-12)");
-  const [subject, setSubject] = useState("Physics");
-  const [topic, setTopic] = useState("Electromagnetic Induction & AC Currents");
+export const VoiceVivaPractice: React.FC<VoiceVivaPracticeProps> = ({ 
+  customApiKey,
+  initialBoard,
+  initialSubject,
+  initialTopic,
+}) => {
+  const [board, setBoard] = useState<ExamBoard>(initialBoard || "WBCHSE Class 12 (Semester 3)");
+  const [subject, setSubject] = useState(initialSubject || "Physics");
+  const [topic, setTopic] = useState(initialTopic || "Electromagnetic Induction & AC Currents");
   const [difficulty, setDifficulty] = useState("Medium");
 
   const [questionData, setQuestionData] = useState<VivaQuestionData | null>(null);
@@ -86,14 +94,24 @@ export const VoiceVivaPractice: React.FC<VoiceVivaPracticeProps> = ({ customApiK
   };
 
   const startRecording = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+      recognitionRef.current = null;
+    }
+
     if (!SpeechHelper.isSpeechRecognitionSupported()) {
-      alert("Browser speech recognition is not supported in this browser. You can type your answer in the text box below.");
+      setErrorMessage("Speech recognition is not available on this mobile browser. Please type your answer in the text box below!");
       return;
     }
 
     try {
-      const rec = SpeechHelper.createRecognition("en-US");
-      if (!rec) return;
+      const rec = SpeechHelper.createRecognition("en-US") || SpeechHelper.createRecognition("bn-IN");
+      if (!rec) {
+        setErrorMessage("Could not start microphone on this browser. Please type your answer in the text box below.");
+        return;
+      }
 
       rec.onstart = () => {
         setIsRecording(true);
@@ -101,14 +119,18 @@ export const VoiceVivaPractice: React.FC<VoiceVivaPracticeProps> = ({ customApiK
 
       rec.onresult = (event: any) => {
         let currentText = "";
-        for (let i = 0; i < event.results.length; i++) {
-          currentText += event.results[i][0].transcript + " ";
+        if (event?.results) {
+          for (let i = 0; i < event.results.length; i++) {
+            if (event.results[i][0]) {
+              currentText += event.results[i][0].transcript + " ";
+            }
+          }
         }
         setSpokenTranscript(currentText.trim());
       };
 
       rec.onerror = (event: any) => {
-        console.error("Speech rec error:", event.error);
+        console.warn("Speech rec error:", event?.error);
         setIsRecording(false);
       };
 
@@ -126,9 +148,12 @@ export const VoiceVivaPractice: React.FC<VoiceVivaPracticeProps> = ({ customApiK
 
   const stopRecording = () => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsRecording(false);
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+      recognitionRef.current = null;
     }
+    setIsRecording(false);
   };
 
   const handleEvaluateAnswer = async () => {
@@ -220,7 +245,8 @@ export const VoiceVivaPractice: React.FC<VoiceVivaPracticeProps> = ({ customApiK
                 onChange={(e) => setBoard(e.target.value as ExamBoard)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-slate-50"
               >
-                <option value="WBCHSE (Class 11-12)">WBCHSE (Higher Secondary)</option>
+                <option value="WBCHSE Class 12 (Semester 3)">WBCHSE Class 12 (Semester 3 Official)</option>
+                <option value="WBCHSE (Class 11-12)">WBCHSE (Class 11-12 General)</option>
                 <option value="WBBSE (Class 9-10)">WBBSE (Madhyamik)</option>
                 <option value="JEE Mains">JEE Mains</option>
                 <option value="NEET UG">NEET UG</option>

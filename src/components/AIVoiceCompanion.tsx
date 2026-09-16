@@ -29,6 +29,8 @@ import { Visualizer } from "./Visualizer";
 interface AIVoiceCompanionProps {
   customApiKey: string;
   selectedModel?: string;
+  initialSubject?: string;
+  initialTopic?: string;
 }
 
 const PRESET_FORMULAS = [
@@ -76,9 +78,16 @@ const PRESET_FORMULAS = [
   },
 ];
 
-export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey, selectedModel }) => {
+export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ 
+  customApiKey, 
+  selectedModel,
+  initialSubject,
+  initialTopic,
+}) => {
   const [activeTab, setActiveTab] = useState<"mentor" | "board" | "tools">("mentor");
-  const [subjectTopic, setSubjectTopic] = useState("Physics & Mathematics");
+  const [subjectTopic, setSubjectTopic] = useState(
+    initialTopic ? `WBCHSE Class 12 Sem 3: ${initialSubject || ""} - ${initialTopic}` : "Physics & Mathematics"
+  );
   const [mahiEmotion, setMahiEmotion] = useState<string>("greeting");
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -88,7 +97,7 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
   const [pts, setPts] = useState(750);
 
   // Board Specific State
-  const [boardSubject, setBoardSubject] = useState("All");
+  const [boardSubject, setBoardSubject] = useState(initialSubject || "All");
   const [isDrawing, setIsDrawing] = useState(false);
   const [chalkColor, setChalkColor] = useState("#fef08a"); // Yellow chalk default
   const [isEraser, setIsEraser] = useState(false);
@@ -103,8 +112,12 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
     displayMarkdown: string;
     reaction: string;
   } | null>({
-    speechText: "নমস্কার! I am Mahi (মাহি), your live AI Voice & Avatar Tutor! Speak your question or tap the microphone below to talk to me live!",
-    displayMarkdown: "### 👋 নমস্কার! I am Mahi (মাহি)\nYour interactive live AI Voice & Visual Avatar Study Companion!\n\n- **12 Live Avatar Expressions**: My face and emotion change automatically as I talk to you!\n- **Hands-Free Live Voice**: Tap the mic below and speak your doubt directly.\n- **Subjects**: Physics, Chemistry, Mathematics & Biology for WBBSE, WBCHSE, JEE & NEET.",
+    speechText: initialTopic
+      ? `নমস্কার! I am Mahi, and I am ready to guide you through WBCHSE Class 12 Semester 3: ${initialTopic}! Ask me any derivation, doubt, or shortcut trick!`
+      : "নমস্কার! I am Mahi (মাহি), your live AI Voice & Avatar Tutor! Speak your question or tap the microphone below to talk to me live!",
+    displayMarkdown: initialTopic
+      ? `### 🎓 WBCHSE Class 12 Semester 3 Live Voice Tutor\n**Active Chapter:** ${initialTopic} (${initialSubject || "Science"})\n\n- Tap **Start Speaking** to ask doubts in Bengali or English\n- Switch to the **Blackboard** tab to write formulas or see live derivations\n- Ask for **shortcut tricks**, **sample numericals**, or **past year exam questions**!`
+      : "### 👋 নমস্কার! I am Mahi (মাহি)\nYour interactive live AI Voice & Visual Avatar Study Companion!\n\n- **12 Live Avatar Expressions**: My face and emotion change automatically as I talk to you!\n- **Hands-Free Live Voice**: Tap the mic below and speak your doubt directly.\n- **Subjects**: Physics, Chemistry, Mathematics & Biology for WBBSE, WBCHSE, JEE & NEET.",
     reaction: "Greeting & Welcome",
   });
 
@@ -135,22 +148,24 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
 
   const accumulatedTranscriptRef = useRef<string>("");
 
+  const [micNotice, setMicNotice] = useState<string | null>(null);
+
   const handleStartListening = () => {
     // Stop any ongoing speech output first so audio hardware is free for recording
-    SpeechHelper.stopSpeaking();
+    try {
+      SpeechHelper.stopSpeaking();
+    } catch (e) {}
     setIsSpeaking(false);
+    setMicNotice(null);
 
-    if (!SpeechHelper.isSpeechRecognitionSupported()) {
-      alert("Voice recognition is not supported in this browser environment. Please use Google Chrome or Microsoft Edge on desktop or mobile!");
-      return;
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+      recognitionRef.current = null;
     }
 
     if (isListening) {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {}
-      }
       setIsListening(false);
       const textToProcess = accumulatedTranscriptRef.current.trim();
       if (textToProcess) {
@@ -159,10 +174,17 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
       return;
     }
 
+    if (!SpeechHelper.isSpeechRecognitionSupported()) {
+      setMicNotice("Speech recognition is not available in this mobile browser. You can type your question in the text box below!");
+      setUserTranscript("Voice input unsupported on this browser. Type your question below!");
+      return;
+    }
+
     // Try speech recognition with Bengali (bn-IN), then fallback gracefully
     const rec = SpeechHelper.createRecognition("bn-IN") || SpeechHelper.createRecognition("en-IN") || SpeechHelper.createRecognition("en-US");
     if (!rec) {
-      alert("Could not initialize Speech Recognition. Please try typing your question below.");
+      setMicNotice("Could not start microphone on this device. Please type your doubt below.");
+      setUserTranscript("Microphone initialization failed. Please type your doubt below.");
       return;
     }
 
@@ -180,12 +202,14 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
     rec.onerror = (event: any) => {
       console.warn("Speech recognition error:", event?.error);
       setIsListening(false);
-      if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
-        alert("Microphone permission was denied or blocked by browser. Please click the camera/mic icon in your browser address bar to allow microphone access!");
-      } else if (event?.error === "no-speech") {
+      const errType = event?.error || "";
+      if (errType === "not-allowed" || errType === "service-not-allowed" || errType === "security") {
+        setMicNotice("Microphone permission was blocked. Please allow mic access in your browser settings or type below!");
+        setUserTranscript("Microphone access blocked. Please allow mic in settings or type below.");
+      } else if (errType === "no-speech") {
         setUserTranscript("No speech detected. Tap live mic to speak again or type below!");
       } else {
-        setUserTranscript("Voice input error. You can also type your doubt below!");
+        setUserTranscript("Voice input stopped. You can type your doubt below!");
       }
     };
 
@@ -199,8 +223,12 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
 
     rec.onresult = (event: any) => {
       let currentText = "";
-      for (let i = 0; i < event.results.length; i++) {
-        currentText += event.results[i][0].transcript + " ";
+      if (event?.results) {
+        for (let i = 0; i < event.results.length; i++) {
+          if (event.results[i][0]) {
+            currentText += event.results[i][0].transcript + " ";
+          }
+        }
       }
       const trimmed = currentText.trim();
       accumulatedTranscriptRef.current = trimmed;
@@ -212,7 +240,8 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
     } catch (e) {
       console.error("Error starting speech recognition:", e);
       setIsListening(false);
-      alert("Microphone activation error. Please allow microphone access or type your doubt.");
+      setMicNotice("Microphone start failed. Please type your question below.");
+      setUserTranscript("Microphone start failed. Please type your doubt below.");
     }
   };
 
@@ -267,11 +296,11 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
           setIsSpeaking(false);
         });
       } else {
-        alert(data.error || "Failed to connect to Mahi AI Voice Companion. If your API key quota is reached, please update key in Settings.");
+        setMicNotice("Could not fetch online response. Tap live mic to speak again or use the text box below.");
       }
     } catch (err) {
       console.error(err);
-      alert("Error contacting AI server.");
+      setMicNotice("AI server connection notice. You can continue speaking or typing below!");
     } finally {
       setLoading(false);
     }
@@ -376,6 +405,21 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
           </button>
         </div>
       </div>
+
+      {micNotice && (
+        <div className="bg-amber-950/80 border border-amber-500/40 text-amber-200 text-xs px-4 py-2.5 rounded-2xl flex items-center justify-between shadow-lg animate-fadeIn">
+          <div className="flex items-center space-x-2">
+            <MicOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span>{micNotice}</span>
+          </div>
+          <button
+            onClick={() => setMicNotice(null)}
+            className="text-amber-400 hover:text-white font-bold ml-2 px-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Segmented Navbar (Mobile Only) */}
       <div className="lg:hidden bg-slate-900/90 backdrop-blur-md p-1.5 rounded-full border border-slate-800 grid grid-cols-3 gap-1 shadow-xl">
@@ -533,7 +577,21 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
               </div>
 
               {/* Toolbar: Chalk Colors, Eraser, Clear */}
-              <div className="flex items-center space-x-2 bg-[#06120d]/80 p-1 rounded-2xl border border-[#1b3d2f]">
+              <div className="flex flex-wrap items-center gap-1.5 bg-[#06120d]/80 p-1 rounded-2xl border border-[#1b3d2f]">
+                {/* Draw Mode Toggle */}
+                <button
+                  onClick={() => setIsDrawing(!isDrawing)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center space-x-1 transition-all ${
+                    isDrawing
+                      ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20"
+                      : "bg-[#122e23] text-emerald-300 hover:text-white"
+                  }`}
+                  title="Toggle Hand Drawing Mode"
+                >
+                  <PenTool className="w-3.5 h-3.5" />
+                  <span>{isDrawing ? "Chalk ON" : "Chalk OFF"}</span>
+                </button>
+
                 {/* Chalk Colors */}
                 <div className="flex items-center space-x-1 px-1">
                   {[
@@ -550,7 +608,7 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
                         setIsDrawing(true);
                       }}
                       className={`w-5 h-5 rounded-full border transition-all ${
-                        !isEraser && chalkColor === item.color
+                        !isEraser && isDrawing && chalkColor === item.color
                           ? "scale-125 border-white shadow-md shadow-white/30"
                           : "border-transparent opacity-70 hover:opacity-100"
                       }`}
@@ -564,9 +622,12 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
 
                 {/* Eraser */}
                 <button
-                  onClick={() => setIsEraser(!isEraser)}
+                  onClick={() => {
+                    setIsEraser(!isEraser);
+                    if (!isDrawing) setIsDrawing(true);
+                  }}
                   className={`p-1.5 rounded-xl transition-all ${
-                    isEraser
+                    isEraser && isDrawing
                       ? "bg-amber-500 text-slate-950 font-bold scale-105"
                       : "text-slate-400 hover:text-amber-300"
                   }`}
@@ -607,7 +668,9 @@ export const AIVoiceCompanion: React.FC<AIVoiceCompanionProps> = ({ customApiKey
                 onTouchStart={startDrawing}
                 onTouchMove={draw}
                 onTouchEnd={stopDrawing}
-                className="absolute inset-0 w-full h-full z-20 cursor-crosshair touch-none"
+                className={`absolute inset-0 w-full h-full z-20 cursor-crosshair transition-opacity ${
+                  isDrawing ? "pointer-events-auto touch-none opacity-100" : "pointer-events-none opacity-80"
+                }`}
               />
 
               {/* Rendered Math Content from Mahi */}

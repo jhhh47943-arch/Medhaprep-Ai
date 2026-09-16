@@ -1,6 +1,6 @@
 {
   "name": "MedhaPrep AI",
-  "description": "AI Mock Test Creator, WBCHSE & JEE Preparation, Voice Verbal Reasoning & Speech Analysis, YouTube & PDF Notes Generator in Bengali & English",
+  "description": "WBCHSE Class 12 Semester 3 Official Syllabus Hub (Physics, Chemistry, Math, Biology, Computer Science, Computer Application, English B, Bengali), Advanced AI OMR Mock Test Creator with KaTeX Step Solutions & PDF Export, High-Yield Notes & Formula Sheets, and Oral Viva Practice",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

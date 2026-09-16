@@ -60,11 +60,11 @@ export const Visualizer: React.FC<VisualizerProps> = ({
   const normalizedKey = normalizeEmotionKey(emotion);
   const activeAvatar = MAHI_AVATARS[normalizedKey] || MAHI_AVATARS.greeting;
 
-  // Image transition & lip-syncing states
+  // Image transition & lip-syncing refs (NO React state in 60fps rAF!)
   const [displayedAvatar, setDisplayedAvatar] = useState(activeAvatar);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [lipSyncScale, setLipSyncScale] = useState(1);
-  const [mouthOpenAmount, setMouthOpenAmount] = useState(0);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const mouthRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (activeAvatar.url !== displayedAvatar.url) {
@@ -75,9 +75,9 @@ export const Visualizer: React.FC<VisualizerProps> = ({
       }, 180);
       return () => clearTimeout(timer);
     }
-  }, [activeAvatar, displayedAvatar]);
+  }, [activeAvatar.url, displayedAvatar.url]);
 
-  // Real-time Canvas Audio Frequency Analyser & Lip-Sync Animation Engine
+  // Real-time Canvas Audio Frequency Analyser & Lip-Sync Animation Engine (Direct DOM updates)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -106,8 +106,14 @@ export const Visualizer: React.FC<VisualizerProps> = ({
           ? Math.abs(Math.sin(phase * 0.8)) * 0.2
           : 0;
 
-        setMouthOpenAmount(currentMouthOpen);
-        setLipSyncScale(1 + currentMouthOpen * 0.05);
+        // Direct DOM style updates for zero React re-render lag
+        if (imgRef.current) {
+          imgRef.current.style.transform = `scale(${1 + currentMouthOpen * 0.05}) translateY(${-currentMouthOpen * 4}px)`;
+        }
+        if (mouthRef.current) {
+          mouthRef.current.style.opacity = `${Math.min(0.8, currentMouthOpen * 1.5)}`;
+          mouthRef.current.style.transform = `scale(${1 + currentMouthOpen * 0.8})`;
+        }
 
         // Render Canvas Frequency Analyzer bars
         for (let i = 0; i < bars; i++) {
@@ -123,24 +129,41 @@ export const Visualizer: React.FC<VisualizerProps> = ({
 
           ctx.fillStyle = gradient;
           ctx.beginPath();
-          ctx.roundRect(
-            i * barWidth + barWidth * 0.15,
-            centerY - amp / 2,
-            barWidth * 0.7,
-            amp,
-            4
-          );
+          if (typeof (ctx as any).roundRect === "function") {
+            (ctx as any).roundRect(
+              i * barWidth + barWidth * 0.15,
+              centerY - amp / 2,
+              barWidth * 0.7,
+              amp,
+              4
+            );
+          } else {
+            ctx.rect(
+              i * barWidth + barWidth * 0.15,
+              centerY - amp / 2,
+              barWidth * 0.7,
+              amp
+            );
+          }
           ctx.fill();
         }
       } else {
-        setMouthOpenAmount(0);
-        setLipSyncScale(1);
+        if (imgRef.current) {
+          imgRef.current.style.transform = "scale(1) translateY(0px)";
+        }
+        if (mouthRef.current) {
+          mouthRef.current.style.opacity = "0";
+        }
       }
 
       animationFrameId = requestAnimationFrame(render);
     };
 
-    render();
+    try {
+      render();
+    } catch (e) {
+      console.warn("Visualizer canvas render error:", e);
+    }
 
     return () => {
       cancelAnimationFrame(animationFrameId);
@@ -154,27 +177,22 @@ export const Visualizer: React.FC<VisualizerProps> = ({
         {/* Reaction Image with Smooth Motion Fade, Scale & Lip-Sync Deformation */}
         <div className="relative w-full h-full overflow-hidden flex items-center justify-center">
           <img
+            ref={imgRef}
             key={displayedAvatar.url}
             src={displayedAvatar.url}
             alt={displayedAvatar.label}
-            style={{
-              transform: `scale(${lipSyncScale}) translateY(${-mouthOpenAmount * 4}px)`,
-            }}
             className={`w-full h-full object-cover transition-transform duration-75 ease-out ${
               isTransitioning ? "opacity-40 scale-105 blur-[2px]" : "opacity-100 blur-0"
             } ${isLoading ? "brightness-90" : "brightness-100"}`}
           />
 
           {/* Lip-Sync Animated Mouth Pulse Overlay */}
-          {isSpeaking && (
-            <div
-              style={{
-                opacity: Math.min(0.8, mouthOpenAmount * 1.5),
-                transform: `scale(${1 + mouthOpenAmount * 0.8})`,
-              }}
-              className="absolute bottom-[38%] left-1/2 -translate-x-1/2 w-8 h-4 rounded-full bg-pink-500/30 blur-sm pointer-events-none transition-all duration-75"
-            />
-          )}
+          <div
+            ref={mouthRef}
+            className={`absolute bottom-[38%] left-1/2 -translate-x-1/2 w-8 h-4 rounded-full bg-pink-500/30 blur-sm pointer-events-none transition-all duration-75 ${
+              isSpeaking ? "opacity-100" : "opacity-0"
+            }`}
+          />
         </div>
 
         {/* Audio Waveform Canvas Overlay */}

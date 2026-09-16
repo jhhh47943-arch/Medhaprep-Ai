@@ -16,11 +16,19 @@ export class AudioStreamer {
   private initAudioContext() {
     if (!this.audioContext || this.audioContext.state === "closed") {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      this.audioContext = new AudioCtx({ sampleRate: this.sampleRate });
+      if (!AudioCtx) return;
+      try {
+        this.audioContext = new AudioCtx({ sampleRate: this.sampleRate });
+      } catch (e) {
+        console.warn("Could not set custom sampleRate on AudioContext, falling back to default...", e);
+        this.audioContext = new AudioCtx();
+      }
       this.scheduledTime = this.audioContext.currentTime;
     }
-    if (this.audioContext.state === "suspended") {
-      this.audioContext.resume();
+    if (this.audioContext && this.audioContext.state === "suspended") {
+      try {
+        this.audioContext.resume();
+      } catch (e) {}
     }
   }
 

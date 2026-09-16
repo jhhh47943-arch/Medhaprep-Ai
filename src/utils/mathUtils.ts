@@ -1,55 +1,43 @@
 import katex from "katex";
 
 /**
- * Pre-processes text from AI to normalize LaTeX math expressions,
- * fix unclosed dollar signs, auto-wrap unwrapped formulas, and fix backslashes.
+ * Normalizes and cleans mathematical expressions from AI text to ensure
+ * robust KaTeX typesetting of all formulas, calculations, and derivations.
  */
 export function preprocessMathText(raw: string): string {
-  if (!raw) return "";
+  if (!raw || typeof raw !== "string") return "";
 
   let text = raw;
 
-  // 1. Standardize bracket delimiters \[ ... \] -> $$ ... $$ and \( ... \) -> $ ... $
-  text = text.replace(/\\\[([\s\S]*?)\\\]/g, " $$$$ $1 $$$$ ");
-  text = text.replace(/\\\(([\s\S]*?)\\\)/g, " $ $1 $ ");
+  // 1. Standardize bracket delimiters:
+  // \[ ... \] -> $$ ... $$ and \( ... \) -> $ ... $
+  text = text.replace(/\\\[([\s\S]*?)\\\]/g, (_m, inner) => ` $$${inner}$$ `);
+  text = text.replace(/\\\(([\s\S]*?)\\\)/g, (_m, inner) => ` $${inner}$ `);
 
-  // 2. Fix double escaped backslashes in latex commands e.g. \\frac -> \frac
+  // 2. Fix double escaped backslashes e.g. \\frac -> \frac, \\sqrt -> \sqrt
   text = text.replace(/\\\\([a-zA-Z]+)/g, "\\$1");
 
-  // 3. Fix unclosed dollar sign edge cases e.g. "\frac{p}{E}$" or "$ \frac{p}{E}"
-  text = text.replace(/(^|[^$])(\\frac\{[^}]*\}\{[^}]*\}|\\sqrt\{[^}]*\}|\\[a-zA-Z]+(?:\s*[0-9a-zA-Z_^{}\\]+)*)\$/g, "$1 $$$2$$ ");
-  text = text.replace(/\$(\\frac\{[^}]*\}\{[^}]*\}|\\sqrt\{[^}]*\}|\\[a-zA-Z]+(?:\s*[0-9a-zA-Z_^{}\\]+)*)([^$]|$)/g, " $$$1$$ $2");
+  // 3. Fix unclosed or misplaced single dollar tags at boundaries
+  // e.g. " = $\frac{a}{b}" -> " = $\frac{a}{b}$ "
+  // 4. Auto-wrap unwrapped LaTeX commands outside existing $ blocks
+  // We split by existing $...$ and $$...$$ first to protect already wrapped math
+  const tokens = text.split(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g);
 
-  // 4. Auto-wrap unwrapped LaTeX math expressions:
-  // If LaTeX commands exist outside $ ... $ or $$ ... $$, wrap them!
-  const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
-  const processed = parts.map((part) => {
-    if (
-      (part.startsWith("$$") && part.endsWith("$$")) ||
-      (part.startsWith("$") && part.endsWith("$") && part.length > 2)
-    ) {
-      return part;
+  const processed = tokens.map((segment) => {
+    // If segment is already wrapped in $...$ or $$...$$, preserve it
+    if (segment.startsWith("$") && segment.endsWith("$")) {
+      return segment;
     }
 
-    // Check if part contains unwrapped LaTeX commands like \frac, \sqrt, \vec, \tau, \theta, \int, \sum, \sin, \cos, \int, etc.
-    if (
-      /\\(?:frac|sqrt|vec|int|sum|prod|lim|alpha|beta|gamma|delta|theta|lambda|mu|pi|rho|sigma|tau|phi|psi|omega|Delta|Gamma|Theta|Lambda|Sigma|Phi|Omega|times|div|pm|mp|le|ge|neq|approx|infty|cdot|partial|nabla|sin|cos|tan|log|ln)\b/.test(
-        part
-      )
-    ) {
-      // Auto wrap math expressions containing backslash commands
-      return part.replace(
-        /(\\?[a-zA-Z0-9_\^\.]+\s*=\s*)?(\\(?:frac\{[^}]*\}\{[^}]*\}|sqrt\{[^}]*\}|vec\{[^}]*\}|[a-zA-Z]+)(?:[^{}\$\n]*|\{[^}]*\}|\^[^{\$\n]+|_[\w\d]+)*)/g,
-        (match) => {
-          if (match.includes("\\") || match.includes("^") || match.includes("_")) {
-            return ` $${match.trim()}$ `;
-          }
-          return match;
-        }
-      );
-    }
+    let s = segment;
 
-    return part;
+    // Auto-wrap LaTeX environment blocks like \begin{matrix}...\end{matrix} or \begin{pmatrix}...\end{pmatrix}
+    s = s.replace(/(\\begin\{(?:matrix|pmatrix|bmatrix|vmatrix|aligned|array)\}[\s\S]*?\\end\{(?:matrix|pmatrix|bmatrix|vmatrix|aligned|array)\})/g, " $$$$$1$$$$ ");
+
+    // Auto-wrap standalone LaTeX expressions with commands like \frac, \sqrt, \int, \sum, etc.
+    s = s.replace(/(\\(?:frac|sqrt|vec|hat|bar|dot|ddot|int|sum|prod|lim|infty|partial|nabla|alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Delta|Gamma|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega|approx|times|cdot|div|pm|mp|leq|geq|le|ge|neq|equiv|sim|subset|supset|subseteq|supseteq|cup|cap|to|rightarrow|Rightarrow|leftarrow|Leftarrow|sin|cos|tan|cot|sec|csc|log|ln|det)(?:\{[^{}]*\}|\[[^[\]]*\]|\^[a-zA-Z0-9{}]+|_\{?[a-zA-Z0-9]+\}?|[a-zA-Z0-9_\^\.\+\-\*\/=\(\)])+)/g, " $$$1$$ ");
+
+    return s;
   });
 
   return processed.join("");
@@ -59,7 +47,7 @@ export function preprocessMathText(raw: string): string {
  * Safely renders a LaTeX math string into KaTeX HTML string.
  */
 export function safeRenderKaTeX(math: string, displayMode: boolean = false): string {
-  if (!math) return "";
+  if (!math || typeof math !== "string") return "";
   let cleanMath = math.trim();
 
   // Strip wrapping $ or $$ if passed
@@ -69,16 +57,37 @@ export function safeRenderKaTeX(math: string, displayMode: boolean = false): str
     cleanMath = cleanMath.slice(1, -1).trim();
   }
 
-  // Clean common KaTeX error triggers
-  cleanMath = cleanMath.replace(/\n/g, " "); // Replace line breaks inside math with spaces
-  cleanMath = cleanMath.replace(/\\\\/g, "\\"); // Convert double backslashes
+  if (!cleanMath) return "";
+
+  // Normalize common math symbols and formatting
+  cleanMath = cleanMath.replace(/\r?\n/g, " ");
+  // Fix unescaped % inside KaTeX which comments out the rest of the equation
+  cleanMath = cleanMath.replace(/([^\\])%/g, "$1\\%");
 
   try {
     return katex.renderToString(cleanMath, {
       displayMode,
       throwOnError: false,
+      strict: false,
+      trust: true,
+      macros: {
+        "\\R": "\\mathbb{R}",
+        "\\N": "\\mathbb{N}",
+        "\\Z": "\\mathbb{Z}",
+        "\\C": "\\mathbb{C}",
+        "\\unit": "\\text{#1}",
+      },
     });
-  } catch (err) {
-    return `<span style="font-family: monospace; color: #d97706;">${cleanMath}</span>`;
+  } catch (_err) {
+    return `<span class="font-mono text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded">${escapeHtml(cleanMath)}</span>`;
   }
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }

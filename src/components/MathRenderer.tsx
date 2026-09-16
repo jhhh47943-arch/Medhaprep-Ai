@@ -20,7 +20,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
     return subParts.map((sub, idx) => {
       if (sub.startsWith("**") && sub.endsWith("**") && sub.length > 4) {
         return (
-          <strong key={idx} className="font-extrabold text-amber-300 font-sans">
+          <strong key={idx} className="font-extrabold text-indigo-950 font-sans">
             {sub.slice(2, -2)}
           </strong>
         );
@@ -68,7 +68,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
       }
 
       // Split line into math blocks ($$...$$ and $...$) and standard text
-      const parts = trimmed.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
+      const parts = trimmed.split(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g);
 
       const lineContent = parts.map((part, index) => {
         // Block level LaTeX math ($$ ... $$)
@@ -80,7 +80,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
           return (
             <div
               key={index}
-              className="my-3 block text-center overflow-x-auto py-2.5 px-4 bg-emerald-950/60 border border-emerald-800/80 rounded-2xl text-emerald-100 font-semibold text-sm sm:text-base shadow-inner font-serif"
+              className="my-3 block text-center overflow-x-auto py-3 px-5 bg-white border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm sm:text-base shadow-sm font-serif hover:border-indigo-300 transition-colors"
               dangerouslySetInnerHTML={{ __html: html }}
             />
           );
@@ -95,7 +95,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
           return (
             <span
               key={index}
-              className="inline-block px-2 py-0.5 my-0.5 mx-0.5 rounded-lg bg-emerald-950/80 text-amber-200 font-bold text-xs sm:text-sm border border-emerald-700/60 font-serif"
+              className="inline-block px-1.5 py-0.5 my-0.5 mx-0.5 rounded-md bg-indigo-50/90 text-indigo-950 font-bold text-xs sm:text-sm border border-indigo-200/70 font-serif"
               dangerouslySetInnerHTML={{ __html: html }}
             />
           );
@@ -108,12 +108,12 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
         return (
           <div
             key={lineIdx}
-            className={`font-black tracking-wide my-2 border-b border-emerald-800/50 pb-1 ${
+            className={`font-black tracking-wide my-2.5 border-b border-slate-200 pb-1.5 ${
               headerLevel === 1
-                ? "text-base sm:text-lg text-amber-300 uppercase"
+                ? "text-base sm:text-lg text-indigo-900 uppercase"
                 : headerLevel === 2
-                ? "text-sm sm:text-base text-amber-200"
-                : "text-xs sm:text-sm text-emerald-200"
+                ? "text-sm sm:text-base text-slate-900 font-extrabold"
+                : "text-xs sm:text-sm text-slate-800 font-bold"
             }`}
           >
             {lineContent}
@@ -123,9 +123,9 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
 
       if (isBullet) {
         return (
-          <div key={lineIdx} className="flex items-start space-x-2 my-1 pl-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-2 shrink-0" />
-            <div className="text-xs sm:text-sm leading-relaxed flex-1">
+          <div key={lineIdx} className="flex items-start space-x-2 my-1.5 pl-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mt-2 shrink-0" />
+            <div className="text-xs sm:text-sm leading-relaxed flex-1 text-slate-800">
               {lineContent}
             </div>
           </div>
@@ -133,7 +133,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
       }
 
       return (
-        <div key={lineIdx} className="my-1 text-xs sm:text-sm leading-relaxed">
+        <div key={lineIdx} className="my-1 text-xs sm:text-sm leading-relaxed text-slate-800">
           {lineContent}
         </div>
       );
@@ -146,6 +146,3 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
 
   return <div className={`space-y-1 ${className}`}>{renderFormattedText(text)}</div>;
 };
-
-
-

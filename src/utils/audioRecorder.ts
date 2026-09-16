@@ -25,18 +25,46 @@ export class AudioRecorder {
   public async start(): Promise<void> {
     if (this.isRecording) return;
 
-    this.mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        sampleRate: 16000,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Microphone access is not supported or blocked on this device/connection. Please use HTTPS or a modern browser like Chrome, Edge, or Safari.");
+    }
+
+    try {
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          sampleRate: 16000,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+    } catch (e1) {
+      console.warn("Retrying getUserMedia with relaxed audio constraints...", e1);
+      try {
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+      } catch (e2: any) {
+        throw new Error("Microphone permission was denied or unavailable on this device.");
+      }
+    }
 
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    this.audioContext = new AudioCtx({ sampleRate: 16000 });
+    if (!AudioCtx) {
+      throw new Error("AudioContext is not supported on this device browser.");
+    }
+
+    try {
+      this.audioContext = new AudioCtx({ sampleRate: 16000 });
+    } catch (e) {
+      console.warn("Could not create AudioContext with 16kHz sampleRate, falling back to default...", e);
+      this.audioContext = new AudioCtx();
+    }
+
+    if (this.audioContext.state === "suspended") {
+      await this.audioContext.resume();
+    }
 
     this.source = this.audioContext.createMediaStreamSource(this.mediaStream);
     // 2048 buffer size gives ~128ms chunks at 16kHz

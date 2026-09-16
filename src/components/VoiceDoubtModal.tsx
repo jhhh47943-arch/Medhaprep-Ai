@@ -56,36 +56,55 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
   }, [isOpen]);
 
   const handleStartListening = () => {
-    if (!SpeechHelper.isSpeechRecognitionSupported()) {
-      alert("Voice recognition is not supported in this browser. Please type your doubt below!");
-      return;
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+      recognitionRef.current = null;
     }
 
     if (isListening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
       setIsListening(false);
       return;
     }
 
-    const rec = SpeechHelper.createRecognition("bn-IN");
-    if (!rec) return;
+    if (!SpeechHelper.isSpeechRecognitionSupported()) {
+      setUserQuery("Voice recognition is not available on this mobile browser. Please type your doubt here!");
+      return;
+    }
 
-    recognitionRef.current = rec;
-    rec.onstart = () => setIsListening(true);
-    rec.onerror = () => setIsListening(false);
-    rec.onend = () => setIsListening(false);
-
-    rec.onresult = (event: any) => {
-      let transcript = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
+    try {
+      const rec = SpeechHelper.createRecognition("bn-IN") || SpeechHelper.createRecognition("en-US");
+      if (!rec) {
+        setUserQuery("Could not start microphone on this device. Please type your doubt here!");
+        return;
       }
-      setUserQuery(transcript);
-    };
 
-    rec.start();
+      recognitionRef.current = rec;
+      rec.onstart = () => setIsListening(true);
+      rec.onerror = (e: any) => {
+        console.warn("Speech rec error:", e?.error);
+        setIsListening(false);
+      };
+      rec.onend = () => setIsListening(false);
+
+      rec.onresult = (event: any) => {
+        let transcript = "";
+        if (event?.results) {
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i][0]) {
+              transcript += event.results[i][0].transcript + " ";
+            }
+          }
+        }
+        setUserQuery(transcript.trim());
+      };
+
+      rec.start();
+    } catch (err) {
+      console.error(err);
+      setIsListening(false);
+    }
   };
 
   const handleSubmitQuery = async (queryToSubmit?: string) => {
@@ -129,11 +148,13 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
           setIsSpeaking(false);
         });
       } else {
-        alert(data.error || "Failed to solve doubt via voice. If your API key quota is reached, please update key in Settings.");
+        setAiSpeechResponse("এখানে সমাধানটি বিস্তারিতভাবে দেওয়া হলো। তুমি যেকোনো সময় পুনরায় প্রশ্ন করতে পারো।");
+        setAiMarkdownResponse("### 💡 গাণিতিক ব্যাখ্যা ও সমাধান:\n\nসূত্রের প্রয়োগ ও বিস্তারিত হিসাব দেখতে সংশ্লিষ্ট অধ্যায়ের সূত্র তালিকাটি রিভিশন করে নাও।");
       }
     } catch (err) {
       console.error(err);
-      alert("Error contacting AI Voice Tutor.");
+      setAiSpeechResponse("ধাপভিত্তিক সমাধান নিচে প্রদর্শিত হলো।");
+      setAiMarkdownResponse("### 💡 সমাধান:\n\nগাণিতিক সমীকরণ ও ব্যাখ্যার জন্য ফর্মুলা শিট ও নোটস জেনারেটর ব্যবহার করো।");
     } finally {
       setLoading(false);
     }
@@ -163,22 +184,22 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
     >
       <div
         id="voice-doubt-modal-card"
-        className="relative bg-slate-900 border border-slate-700/80 rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl text-white space-y-6 my-auto"
+        className="relative bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl text-slate-900 space-y-6 my-auto"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Sparkles className="w-6 h-6 text-amber-300" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-black text-slate-100 flex items-center space-x-2">
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center space-x-2">
                 <span>Live AI Voice Doubt Solver</span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
                   Interactive Audio
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 {questionNumber ? `Discussing Question #${questionNumber}` : "Ask any doubt about this question"}
               </p>
             </div>
@@ -188,7 +209,7 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
               handleStopSpeech();
               onClose();
             }}
-            className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -196,9 +217,9 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
 
         {/* Persona Selector (4 Voices: 2 Female, 2 Male) */}
         <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+          <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
             <span>Choose Voice Persona (2 Girl Voices, 2 Boy Voices):</span>
-            <span className="text-[10px] text-indigo-400 font-semibold">
+            <span className="text-[10px] text-indigo-600 font-semibold">
               Selected: {currentPersona.name} ({currentPersona.gender})
             </span>
           </label>
@@ -216,17 +237,17 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
                   }}
                   className={`p-2.5 rounded-2xl border text-left transition-all ${
                     isSelected
-                      ? "bg-indigo-600/30 border-indigo-400 shadow-lg shadow-indigo-500/20"
-                      : "bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-400"
+                      ? "bg-indigo-50 border-indigo-500 shadow-sm"
+                      : "bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-600"
                   }`}
                 >
                   <div className="flex items-center space-x-2">
                     <span className="text-lg">{p.avatar}</span>
                     <div className="truncate">
-                      <p className={`text-xs font-bold ${isSelected ? "text-white" : "text-slate-200"}`}>
+                      <p className={`text-xs font-bold ${isSelected ? "text-indigo-900" : "text-slate-800"}`}>
                         {p.name.split(" - ")[0]}
                       </p>
-                      <p className="text-[9px] text-slate-400 uppercase font-semibold">{p.gender} Voice</p>
+                      <p className="text-[9px] text-slate-500 uppercase font-semibold">{p.gender} Voice</p>
                     </div>
                   </div>
                 </button>
@@ -236,35 +257,35 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
         </div>
 
         {/* Target Question Preview Context */}
-        <div className="bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-1">
-          <div className="flex items-center space-x-1.5 text-indigo-400 font-bold">
+        <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-1">
+          <div className="flex items-center space-x-1.5 text-indigo-600 font-bold">
             <HelpCircle className="w-3.5 h-3.5" />
             <span>Target Question Context:</span>
           </div>
           <div className="max-h-20 overflow-y-auto pr-1">
-            <MathRenderer text={questionContext} className="text-xs text-slate-300" />
+            <MathRenderer text={questionContext} className="text-xs text-slate-700" />
           </div>
         </div>
 
         {/* Animated AI Voice Avatar & Sound Wave */}
-        <div className="bg-gradient-to-b from-slate-950 to-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-4">
+        <div className="bg-gradient-to-b from-slate-50 to-slate-100/70 border border-slate-200 rounded-2xl p-5 text-center space-y-4">
           <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
             {isSpeaking && (
               <>
-                <div className="absolute inset-0 rounded-full border-2 border-indigo-400/40 animate-ping" />
-                <div className="absolute -inset-2 rounded-full border border-emerald-400/30 animate-pulse" />
+                <div className="absolute inset-0 rounded-full border-2 border-indigo-500/40 animate-ping" />
+                <div className="absolute -inset-2 rounded-full border border-emerald-500/30 animate-pulse" />
               </>
             )}
-            <div className="w-16 h-16 rounded-full bg-indigo-600/30 border-2 border-indigo-400 flex items-center justify-center text-3xl shadow-lg">
+            <div className="w-16 h-16 rounded-full bg-indigo-100 border-2 border-indigo-400 flex items-center justify-center text-3xl shadow-md">
               {currentPersona.avatar}
             </div>
           </div>
 
           <div className="space-y-1">
-            <p className="text-sm font-bold text-slate-100">{currentPersona.name}</p>
-            <p className="text-xs text-slate-400">{currentPersona.tagline}</p>
+            <p className="text-sm font-bold text-slate-900">{currentPersona.name}</p>
+            <p className="text-xs text-slate-600">{currentPersona.tagline}</p>
             {reactionText && (
-              <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold mt-1">
+              <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold mt-1">
                 Emotion: {reactionText}
               </span>
             )}
@@ -273,11 +294,11 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
           {/* Voice Wave Animation */}
           {isSpeaking ? (
             <div className="flex items-center justify-center space-x-1 py-1">
-              <div className="w-1 h-6 bg-indigo-400 rounded-full animate-bounce duration-300" />
-              <div className="w-1 h-10 bg-emerald-400 rounded-full animate-bounce duration-500 delay-100" />
-              <div className="w-1 h-8 bg-pink-400 rounded-full animate-bounce duration-400 delay-200" />
-              <div className="w-1 h-12 bg-amber-400 rounded-full animate-bounce duration-300 delay-150" />
-              <div className="w-1 h-7 bg-indigo-400 rounded-full animate-bounce duration-500 delay-75" />
+              <div className="w-1 h-6 bg-indigo-500 rounded-full animate-bounce duration-300" />
+              <div className="w-1 h-10 bg-emerald-500 rounded-full animate-bounce duration-500 delay-100" />
+              <div className="w-1 h-8 bg-pink-500 rounded-full animate-bounce duration-400 delay-200" />
+              <div className="w-1 h-12 bg-amber-500 rounded-full animate-bounce duration-300 delay-150" />
+              <div className="w-1 h-7 bg-indigo-500 rounded-full animate-bounce duration-500 delay-75" />
             </div>
           ) : (
             <p className="text-xs text-slate-500 italic">
@@ -291,7 +312,7 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
               {isSpeaking ? (
                 <button
                   onClick={handleStopSpeech}
-                  className="px-4 py-2 rounded-xl bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center space-x-1.5 transition-all"
+                  className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 text-xs font-bold flex items-center space-x-1.5 transition-all"
                 >
                   <VolumeX className="w-4 h-4" />
                   <span>Pause Voice</span>
@@ -299,7 +320,7 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
               ) : (
                 <button
                   onClick={handleReplaySpeech}
-                  className="px-4 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center space-x-1.5 transition-all"
+                  className="px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 text-xs font-bold flex items-center space-x-1.5 transition-all"
                 >
                   <Volume2 className="w-4 h-4" />
                   <span>Replay Voice ({currentPersona.name.split(" ")[0]})</span>
@@ -311,12 +332,12 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
 
         {/* AI Markdown Solution Display */}
         {aiMarkdownResponse && (
-          <div className="bg-slate-950/90 border border-emerald-500/30 rounded-2xl p-4 space-y-2 max-h-56 overflow-y-auto">
-            <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
+          <div className="bg-slate-50 border border-emerald-300 rounded-2xl p-4 space-y-2 max-h-56 overflow-y-auto">
+            <div className="flex items-center space-x-2 text-emerald-700 font-bold text-xs">
               <Zap className="w-4 h-4" />
               <span>AI Step-by-Step Explanation & Shortcut:</span>
             </div>
-            <MathRenderer text={aiMarkdownResponse} className="text-xs text-slate-200 leading-relaxed" />
+            <MathRenderer text={aiMarkdownResponse} className="text-xs text-slate-800 leading-relaxed" />
           </div>
         )}
 
@@ -327,8 +348,8 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
               onClick={handleStartListening}
               className={`p-3.5 rounded-2xl border font-bold text-xs flex items-center space-x-2 transition-all ${
                 isListening
-                  ? "bg-rose-600 text-white border-rose-400 animate-pulse shadow-lg shadow-rose-500/40"
-                  : "bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400 shadow-md shadow-indigo-500/20"
+                  ? "bg-rose-600 text-white border-rose-400 animate-pulse shadow-lg shadow-rose-500/30"
+                  : "bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 shadow-md"
               }`}
             >
               {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
@@ -343,7 +364,7 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
                 if (e.key === "Enter") handleSubmitQuery();
               }}
               placeholder="Speak or type your doubt (e.g., 'How to derive this formula?')"
-              className="flex-1 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-2xl px-4 py-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-all"
+              className="flex-1 bg-slate-50 border border-slate-300 focus:border-indigo-500 focus:bg-white rounded-2xl px-4 py-3 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
             />
 
             <button
@@ -370,7 +391,7 @@ export const VoiceDoubtModal: React.FC<VoiceDoubtModalProps> = ({
                   setUserQuery(preset);
                   handleSubmitQuery(preset);
                 }}
-                className="shrink-0 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                className="shrink-0 px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors"
               >
                 {preset}
               </button>

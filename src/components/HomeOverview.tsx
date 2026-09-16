@@ -22,74 +22,74 @@ interface HomeOverviewProps {
   onStartTest: () => void;
   onStartNotes: () => void;
   onStartViva: () => void;
-  onStartVoiceCompanion?: () => void;
+  onStartWBCHSESem3?: () => void;
 }
 
 export const HomeOverview: React.FC<HomeOverviewProps> = ({
   onStartTest,
   onStartNotes,
   onStartViva,
-  onStartVoiceCompanion,
+  onStartWBCHSESem3,
 }) => {
   return (
     <div id="home-overview-wrapper" className="space-y-12 pb-16">
       {/* Hero Section */}
-      <section id="hero-banner" className="relative overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 text-white p-8 sm:p-12 shadow-2xl">
-        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl pointer-events-none" />
+      <section id="hero-banner" className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 text-slate-900 p-8 sm:p-12 shadow-sm">
+        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-indigo-50 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-96 h-96 bg-emerald-50 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl space-y-6">
-          <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>AI Exam Engine for WBBSE, WBCHSE, JEE Mains & NEET</span>
+          <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold">
+            <Sparkles className="w-4 h-4 text-amber-600" />
+            <span>Dedicated WBCHSE Class 12 (Semester 3) Official Curriculum Hub Included</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight text-slate-100">
-            Welcome to <span className="bg-gradient-to-r from-indigo-400 via-sky-300 to-emerald-300 bg-clip-text text-transparent">MedhaPrep AI</span>
+          <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight text-slate-900">
+            Welcome to <span className="text-indigo-600">MedhaPrep AI</span>
           </h1>
 
-          <p className="text-base sm:text-lg text-slate-300 leading-relaxed">
-            West Bengal's most advanced AI study platform. Generate board & entrance mock tests with PYQs, practice oral reasoning viva voce, chat live with realistic AI Voice Tutors (2 Female, 2 Male voices), and convert YouTube videos & PDFs into Bengali (বাংলা) & English revision notes!
+          <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+            West Bengal's most advanced AI study platform. Full syllabus mastery for <strong>WBCHSE Class 12 (Semester 3)</strong>, JEE & NEET. Practice OMR tests with KaTeX math steps, speech reasoning viva voce, and YouTube & PDF smart notes!
           </p>
 
           <div className="flex flex-wrap gap-4 pt-2">
-            <button
-              id="hero-create-mock-test-cta"
-              onClick={onStartTest}
-              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-semibold shadow-lg shadow-indigo-600/30 flex items-center space-x-2 transition-all transform hover:-translate-y-0.5"
-            >
-              <Sparkles className="w-5 h-5 text-amber-300" />
-              <span>Create Mock Test Now</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-
-            {onStartVoiceCompanion && (
+            {onStartWBCHSESem3 && (
               <button
-                id="hero-voice-companion-cta"
-                onClick={onStartVoiceCompanion}
-                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold shadow-lg shadow-purple-600/30 flex items-center space-x-2 transition-all"
+                id="hero-wbchse-sem3-cta"
+                onClick={onStartWBCHSESem3}
+                className="px-6 py-3.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold shadow-md shadow-amber-400/20 flex items-center space-x-2 transition-all transform hover:-translate-y-0.5"
               >
-                <Mic className="w-5 h-5 text-amber-300 animate-pulse" />
-                <span>AI Voice Tutor (কথা বলুন)</span>
+                <Sparkles className="w-5 h-5 text-slate-950" />
+                <span>WBCHSE Sem 3 Syllabus Hub (সেমিস্টার ৩)</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             )}
 
             <button
+              id="hero-create-mock-test-cta"
+              onClick={onStartTest}
+              className="px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20 flex items-center space-x-2 transition-all transform hover:-translate-y-0.5"
+            >
+              <Sparkles className="w-5 h-5 text-amber-300" />
+              <span>AI Mock Test & OMR</span>
+            </button>
+
+            <button
               id="hero-generate-notes-cta"
               onClick={onStartNotes}
-              className="px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold flex items-center space-x-2 transition-all"
+              className="px-6 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 font-bold flex items-center space-x-2 transition-all"
             >
-              <FileText className="w-5 h-5 text-emerald-400" />
-              <span>YouTube Video to Notes</span>
+              <FileText className="w-5 h-5 text-emerald-600" />
+              <span>Notes & PDF</span>
             </button>
 
             <button
               id="hero-voice-viva-cta"
               onClick={onStartViva}
-              className="px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold flex items-center space-x-2 transition-all"
+              className="px-6 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 font-bold flex items-center space-x-2 transition-all"
             >
-              <Mic className="w-5 h-5 text-rose-400" />
-              <span>Voice Viva Practice</span>
+              <Mic className="w-5 h-5 text-rose-600" />
+              <span>Oral Viva Practice</span>
             </button>
           </div>
         </div>

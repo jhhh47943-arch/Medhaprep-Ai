@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, Brain, Zap, CheckCircle2, BookOpen, Layers } from "lucide-react";
+import { Sparkles, Brain, CheckCircle2, BookOpen, Layers, ShieldCheck } from "lucide-react";
 
 interface GenerationLoadingModalProps {
   isOpen: boolean;
@@ -8,44 +8,65 @@ interface GenerationLoadingModalProps {
 }
 
 const STEP_MESSAGES = [
-  "🔍 Scanning WBBSE / WBCHSE / JEE / NEET Syllabi & Board PYQs...",
-  "⚡ Synthesizing High-Yield Questions & Step-by-Step Solutions...",
-  "📐 Typesetting Mathematical Formulas & KaTeX Equations ($E=mc^2$)...",
-  "🌐 Formatting Bengali (বাংলা) & English Translations & Short Tricks...",
-  "✨ Finalizing Exam-Ready Paper & Answer Key...",
+  "WBCHSE / WBBSE / JEE / NEET পাঠ্যক্রম ও বিগত বছরের প্রশ্ন বিশ্লেষণ করা হচ্ছে...",
+  "মানসম্মত বহুবিকল্পভিত্তিক ও তত্ত্বীয় প্রশ্নাবলী প্রস্তুত করা হচ্ছে...",
+  "LaTeX KaTeX ফরম্যাটে গাণিতিক সূত্রাবলী ও সমীকরণ টাইপসেট করা হচ্ছে...",
+  "উচ্চমাধ্যমিক স্ট্যান্ডার্ড প্রাতিষ্ঠানিক বাংলা ও ইংরেজি পরিভাষা যুক্ত হচ্ছে...",
+  "ধাপভিত্তিক সমাধান, উত্তর সংকেত ও ফাইনাল পেপার প্রস্তুত হচ্ছে...",
 ];
 
 const BENGALI_QUOTES = [
   "\"সংগ্রামই জীবনের অন্য নাম - লেগে থাকো, জয় তোমারই হবে।\"",
-  "\"পরিশ্রম ও সঠিক গাইডলাইনের জোরে যেকোনো পরীক্ষায় সেরা স্থান অর্জন সম্ভব।\"",
-  "\"WBCHSE, JEE ও NEET পরীক্ষায় সঠিক রিভিশন ও প্র্যাকটিসই সাফল্যের চাবিকাঠি।\"",
-  "\"প্রতিটি ভুল উত্তর থেকে শিখে এগিয়ে যাওয়াই হলো প্রকৃত মেধাবীর লক্ষণ।\"",
+  "\"পরিশ্রম ও সঠিক রিভিশনের জোরে যেকোনো পরীক্ষায় সেরা স্থান অর্জন সম্ভব।\"",
+  "\"WBCHSE, JEE ও NEET পরীক্ষায় নির্ভুল প্র্যাকটিসই সর্বোচ্চ স্কোরের চাবিকাঠি।\"",
+  "\"প্রতিটি ভুল উত্তর থেকে শিখে এগিয়ে যাওয়াই হলো প্রকৃত সফলতার পথ।\"",
 ];
 
 export const GenerationLoadingModal: React.FC<GenerationLoadingModalProps> = ({
   isOpen,
   title = "AI Engine Generating Your Content...",
-  subtitle = "Gemini 3.6 Flash is crafting customized exam materials in real-time.",
+  subtitle = "Gemini 3.6 Flash is crafting authentic board exam materials in real-time.",
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
+  const [progress, setProgress] = useState(15);
   const [quoteIdx, setQuoteIdx] = useState(0);
 
+  // Prevent background scroll and reset states
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
       setCurrentStep(0);
-      return;
+      setProgress(15);
+    } else {
+      document.body.style.overflow = "unset";
     }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
 
     const stepInterval = setInterval(() => {
-      setCurrentStep((prev) => (prev < STEP_MESSAGES.length - 1 ? prev + 1 : prev));
-    }, 1800);
+      setCurrentStep((prev) => {
+        const next = prev < STEP_MESSAGES.length - 1 ? prev + 1 : prev;
+        setProgress(Math.min(94, 20 + next * 18));
+        return next;
+      });
+    }, 1900);
+
+    const progressSubInterval = setInterval(() => {
+      setProgress((p) => (p < 92 ? p + 1 : p));
+    }, 350);
 
     const quoteInterval = setInterval(() => {
       setQuoteIdx((prev) => (prev + 1) % BENGALI_QUOTES.length);
-    }, 4000);
+    }, 4200);
 
     return () => {
       clearInterval(stepInterval);
+      clearInterval(progressSubInterval);
       clearInterval(quoteInterval);
     };
   }, [isOpen]);
@@ -55,50 +76,52 @@ export const GenerationLoadingModal: React.FC<GenerationLoadingModalProps> = ({
   return (
     <div
       id="generation-modal-overlay"
-      className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 overflow-hidden"
+      className="fixed inset-0 z-50 bg-slate-950/92 backdrop-blur-xl flex items-center justify-center p-4 select-none animate-in fade-in duration-200"
     >
-      {/* Background Animated Floating Math Symbols */}
-      <div className="absolute inset-0 pointer-events-none opacity-20 overflow-hidden select-none">
-        <div className="absolute top-10 left-10 text-3xl font-serif text-indigo-400 animate-bounce duration-[3000ms]">
-          {"\\int_{0}^{\\infty} e^{-x^2} dx"}
-        </div>
-        <div className="absolute top-1/4 right-16 text-4xl font-serif text-emerald-400 animate-pulse duration-[2500ms]">
-          {"E = h\\nu"}
-        </div>
-        <div className="absolute bottom-20 left-1/4 text-3xl font-serif text-amber-400 animate-bounce duration-[4000ms]">
-          {"\\nabla \\times \\mathbf{B} = \\mu_0 \\mathbf{J}"}
-        </div>
-        <div className="absolute bottom-1/3 right-1/4 text-5xl font-serif text-purple-400 animate-pulse duration-[3500ms]">
-          {"\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1"}
-        </div>
-        <div className="absolute top-1/3 left-1/3 text-4xl font-serif text-rose-400 animate-ping duration-[5000ms]">
-          {"\\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}"}
-        </div>
-      </div>
+      {/* Gentle ambient background glow */}
+      <div className="absolute w-[500px] h-[500px] bg-gradient-to-tr from-indigo-600/20 via-blue-600/15 to-purple-600/20 rounded-full blur-3xl pointer-events-none" />
 
       <div
         id="generation-modal-box"
-        className="relative bg-slate-900 border border-slate-700/80 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 text-white text-center animate-in zoom-in-95 duration-200"
+        className="relative bg-slate-900/95 border border-slate-700/80 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 text-white text-center animate-in zoom-in-95 duration-200"
       >
         {/* Glow Ring Loader */}
-        <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full border-4 border-indigo-500/20 animate-ping" />
-          <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 border-r-emerald-400 border-b-pink-500 border-l-amber-400 animate-spin duration-[1200ms]" />
-          <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-indigo-500/40">
-            <Sparkles className="w-8 h-8 text-amber-300 animate-pulse" />
+        <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full border-4 border-indigo-500/20 animate-ping duration-[2500ms]" />
+          <div className="absolute inset-0 rounded-full border-3 border-t-indigo-400 border-r-amber-400 border-b-emerald-400 border-l-transparent animate-spin duration-[1100ms]" />
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+            <Sparkles className="w-7 h-7 text-amber-300 animate-pulse" />
           </div>
         </div>
 
         {/* Title */}
-        <div className="space-y-1">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold uppercase tracking-wider">
+            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+            <span>MedhaPrep AI Generation Engine</span>
+          </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-100 tracking-tight">
             {title}
           </h2>
-          <p className="text-xs text-slate-400">{subtitle}</p>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">{subtitle}</p>
+        </div>
+
+        {/* Progress Bar with Percentage */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-300 px-1">
+            <span className="text-indigo-300">প্রস্তুতির অগ্রগতি (Progress)</span>
+            <span className="font-mono text-amber-400">{progress}%</span>
+          </div>
+          <div className="w-full bg-slate-800/80 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-700">
+            <div
+              className="bg-gradient-to-r from-indigo-500 via-blue-500 to-amber-400 h-full rounded-full transition-all duration-500 ease-out shadow-sm"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
 
         {/* Live Stepper List */}
-        <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800 text-left space-y-2.5">
+        <div className="bg-slate-950/70 rounded-2xl p-4 border border-slate-800 text-left space-y-2.5">
           {STEP_MESSAGES.map((msg, idx) => {
             const isDone = idx < currentStep;
             const isCurrent = idx === currentStep;
@@ -109,7 +132,7 @@ export const GenerationLoadingModal: React.FC<GenerationLoadingModalProps> = ({
                   isDone
                     ? "text-emerald-400 font-semibold"
                     : isCurrent
-                    ? "text-indigo-300 font-bold scale-[1.02]"
+                    ? "text-indigo-200 font-bold scale-[1.01]"
                     : "text-slate-600 opacity-60"
                 }`}
               >
@@ -122,7 +145,7 @@ export const GenerationLoadingModal: React.FC<GenerationLoadingModalProps> = ({
                     <div className="w-4 h-4 rounded-full border border-slate-700" />
                   )}
                 </div>
-                <span className="truncate">{msg}</span>
+                <span className="truncate leading-relaxed">{msg}</span>
               </div>
             );
           })}
@@ -131,8 +154,8 @@ export const GenerationLoadingModal: React.FC<GenerationLoadingModalProps> = ({
         {/* Motivational Bengali Quote Footer */}
         <div className="pt-2 border-t border-slate-800 space-y-1">
           <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-bold flex items-center justify-center space-x-1">
-            <Brain className="w-3 h-3" />
-            <span>MedhaPrep AI Study Motivation</span>
+            <Brain className="w-3.5 h-3.5 text-emerald-400" />
+            <span>MedhaPrep পরীক্ষার প্রস্তুতি মোটিভেশন</span>
           </span>
           <p className="text-xs text-slate-300 italic font-medium min-h-[32px] transition-all duration-500 flex items-center justify-center">
             {BENGALI_QUOTES[quoteIdx]}
@@ -142,3 +165,4 @@ export const GenerationLoadingModal: React.FC<GenerationLoadingModalProps> = ({
     </div>
   );
 };
+

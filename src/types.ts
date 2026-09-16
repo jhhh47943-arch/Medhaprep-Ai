@@ -1,4 +1,5 @@
 export type ExamBoard = 
+  | "WBCHSE Class 12 (Semester 3)"
   | "WBCHSE (Class 11-12)" 
   | "WBBSE (Class 9-10)" 
   | "JEE Mains" 
@@ -55,15 +56,44 @@ export interface TestResult {
   completedAt: string;
 }
 
+export interface SolvedTextbookExample {
+  problemStatement: string;
+  solutionSteps: string;
+  examTag?: string;
+  difficulty?: string;
+}
+
+export interface TextbookTheorem {
+  theoremName: string;
+  statement: string;
+  proofSteps: string[];
+  physicalSignificance?: string;
+  limitingCases?: string;
+}
+
 export interface StudyNoteSection {
   heading: string;
   content: string;
+  subsections?: {
+    subHeading: string;
+    subContent: string;
+  }[];
+  theorems?: TextbookTheorem[];
+  solvedExamples?: SolvedTextbookExample[];
+  commonMistakes?: {
+    misconception: string;
+    correctConcept: string;
+  }[];
   keyTakeaways?: string[];
+  derivationSteps?: string[];
+  realExamExample?: string;
 }
 
 export interface FormulaOrDef {
   termOrFormula: string;
   explanation: string;
+  unitOrDimension?: string;
+  conditions?: string;
 }
 
 export interface Flashcard {
@@ -74,6 +104,8 @@ export interface Flashcard {
 export interface PracticeQnA {
   question: string;
   answer: string;
+  pyqTag?: string;
+  marks?: number;
 }
 
 export interface ShortTrickItem {
@@ -85,15 +117,25 @@ export interface ShortTrickItem {
 export interface StudyNote {
   id: string;
   title: string;
+  chapterNumber?: string;
   subject?: string;
+  board?: string;
   language: string;
   overview: string;
+  pageCount?: string;
+  detailDepth?: string;
   sections: StudyNoteSection[];
   keyFormulaeAndDefs?: FormulaOrDef[];
   shortTricks?: ShortTrickItem[];
   shortRevisionPoints?: string[];
   flashcards?: Flashcard[];
   practiceQuestions?: PracticeQnA[];
+  chapterSummaryTable?: {
+    parameter: string;
+    formula: string;
+    unit: string;
+    remarks: string;
+  }[];
   createdAt: string;
 }
 
@@ -115,10 +157,9 @@ export interface VivaEvaluation {
 }
 
 export type GeminiModelType = 
-  | "gemini-3.5-flash"
-  | "gemini-3.6-flash" 
-  | "gemini-3.1-pro-preview" 
+  | "gemini-3.7-flash"
   | "gemini-flash-latest" 
+  | "gemini-3.1-pro-preview" 
   | "gemini-3.1-flash-lite";
 
 export interface AppSettings {

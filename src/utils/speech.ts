@@ -47,18 +47,28 @@ export const VOICE_PERSONAS: VoicePersona[] = [
 
 export class SpeechHelper {
   static isSpeechRecognitionSupported(): boolean {
-    return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+    try {
+      return typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+    } catch (e) {
+      return false;
+    }
   }
 
   static createRecognition(language: 'en-US' | 'bn-IN' | 'en-IN' = 'bn-IN') {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return null;
+    try {
+      if (typeof window === "undefined") return null;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) return null;
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = language;
-    return recognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = language;
+      return recognition;
+    } catch (e) {
+      console.warn("SpeechRecognition creation failed on this device:", e);
+      return null;
+    }
   }
 
   /**
@@ -123,7 +133,10 @@ export class SpeechHelper {
     lang: 'en-US' | 'bn-IN' = 'en-US',
     onEnd?: () => void
   ) {
-    if (!('speechSynthesis' in window)) return;
+    if (typeof window === "undefined" || !('speechSynthesis' in window)) {
+      if (onEnd) onEnd();
+      return;
+    }
 
     try {
       window.speechSynthesis.cancel(); // cancel any active or frozen speech
@@ -133,79 +146,112 @@ export class SpeechHelper {
     } catch (e) {}
 
     const spokenText = SpeechHelper.convertLatexToSpokenText(text);
-    if (!spokenText) return;
+    if (!spokenText) {
+      if (onEnd) onEnd();
+      return;
+    }
 
-    const utterance = new SpeechSynthesisUtterance(spokenText);
-    utterance.lang = lang;
+    let hasRun = false;
+    let fallbackTimer: any = null;
 
-    const persona = VOICE_PERSONAS.find((p) => p.id === personaId) || VOICE_PERSONAS[0];
-    utterance.pitch = 1.15; // Natural sweet pitch
-    utterance.rate = 0.92; // Clear human speaking pace
-
-    const assignVoiceAndSpeak = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        let chosenVoice = null;
-        
-        if (lang === 'bn-IN') {
-          // Priority for Bengali or Indian voices
-          chosenVoice = voices.find((v) => v.lang.startsWith("bn") || v.name.toLowerCase().includes("bangla") || v.name.toLowerCase().includes("bengali"));
-          if (!chosenVoice) {
-            chosenVoice = voices.find((v) => (v.lang.startsWith("hi") || v.lang.startsWith("en-IN")) && (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("google") || v.name.toLowerCase().includes("swara") || v.name.toLowerCase().includes("heera")));
-          }
-        }
-
-        if (!chosenVoice) {
-          chosenVoice = voices.find(
-            (v) =>
-              (v.name.toLowerCase().includes("female") ||
-                v.name.toLowerCase().includes("zira") ||
-                v.name.toLowerCase().includes("samantha") ||
-                v.name.toLowerCase().includes("victoria") ||
-                v.name.toLowerCase().includes("google") ||
-                v.name.toLowerCase().includes("karen") ||
-                v.name.toLowerCase().includes("natural")) &&
-              (v.lang.startsWith("en") || v.lang.startsWith("bn") || v.lang.startsWith("hi"))
-          );
-        }
-
-        if (!chosenVoice) {
-          chosenVoice = voices.find((v) => v.lang.startsWith(lang.split('-')[0]));
-        }
-
-        if (chosenVoice) {
-          utterance.voice = chosenVoice;
-        }
-      }
-
+    const cleanup = () => {
+      if (fallbackTimer) clearTimeout(fallbackTimer);
       if (onEnd) {
-        utterance.onend = () => onEnd();
-        utterance.onerror = () => onEnd();
-      }
-
-      try {
-        window.speechSynthesis.speak(utterance);
-      } catch (err) {
-        console.error("Speech synthesis speak error:", err);
-        if (onEnd) onEnd();
+        onEnd();
       }
     };
 
-    // Handle voice loading delays
-    if (window.speechSynthesis.getVoices().length === 0) {
-      window.speechSynthesis.onvoiceschanged = () => {
+    const assignVoiceAndSpeak = () => {
+      if (hasRun) return;
+      hasRun = true;
+
+      try {
+        const utterance = new SpeechSynthesisUtterance(spokenText);
+        utterance.lang = lang;
+        utterance.pitch = 1.15;
+        utterance.rate = 0.92;
+
+        const voices = window.speechSynthesis.getVoices() || [];
+        if (voices.length > 0) {
+          let chosenVoice = null;
+          
+          if (lang === 'bn-IN') {
+            chosenVoice = voices.find((v) => v.lang.startsWith("bn") || v.name.toLowerCase().includes("bangla") || v.name.toLowerCase().includes("bengali"));
+            if (!chosenVoice) {
+              chosenVoice = voices.find((v) => (v.lang.startsWith("hi") || v.lang.startsWith("en-IN")) && (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("google") || v.name.toLowerCase().includes("swara") || v.name.toLowerCase().includes("heera")));
+            }
+          }
+
+          if (!chosenVoice) {
+            chosenVoice = voices.find(
+              (v) =>
+                (v.name.toLowerCase().includes("female") ||
+                  v.name.toLowerCase().includes("zira") ||
+                  v.name.toLowerCase().includes("samantha") ||
+                  v.name.toLowerCase().includes("victoria") ||
+                  v.name.toLowerCase().includes("google") ||
+                  v.name.toLowerCase().includes("karen") ||
+                  v.name.toLowerCase().includes("natural")) &&
+                (v.lang.startsWith("en") || v.lang.startsWith("bn") || v.lang.startsWith("hi"))
+            );
+          }
+
+          if (!chosenVoice) {
+            chosenVoice = voices.find((v) => v.lang.startsWith(lang.split('-')[0]));
+          }
+
+          if (chosenVoice) {
+            utterance.voice = chosenVoice;
+          }
+        }
+
+        utterance.onend = () => cleanup();
+        utterance.onerror = (e) => {
+          console.warn("SpeechSynthesisUtterance error:", e);
+          cleanup();
+        };
+
+        // Safety timeout in case speech synth hangs on mobile Safari
+        const estimatedDurationMs = Math.max(3000, Math.min(25000, (spokenText.length / 10) * 1000));
+        fallbackTimer = setTimeout(() => {
+          cleanup();
+        }, estimatedDurationMs);
+
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.error("Speech synthesis speak error:", err);
+        cleanup();
+      }
+    };
+
+    try {
+      const currentVoices = window.speechSynthesis.getVoices();
+      if (!currentVoices || currentVoices.length === 0) {
+        let voiceChangedCalled = false;
+        window.speechSynthesis.onvoiceschanged = () => {
+          if (!voiceChangedCalled) {
+            voiceChangedCalled = true;
+            window.speechSynthesis.onvoiceschanged = null;
+            assignVoiceAndSpeak();
+          }
+        };
+        setTimeout(() => {
+          if (!voiceChangedCalled) {
+            voiceChangedCalled = true;
+            assignVoiceAndSpeak();
+          }
+        }, 150);
+      } else {
         assignVoiceAndSpeak();
-        window.speechSynthesis.onvoiceschanged = null;
-      };
-      // Fallback timeout if voiceschanged doesn't fire
-      setTimeout(assignVoiceAndSpeak, 200);
-    } else {
-      assignVoiceAndSpeak();
+      }
+    } catch (err) {
+      console.error("SpeechSynthesis outer error:", err);
+      if (onEnd) onEnd();
     }
   }
 
   static stopSpeaking() {
-    if ('speechSynthesis' in window) {
+    if (typeof window !== "undefined" && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
       } catch (e) {}
